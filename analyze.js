@@ -136,8 +136,8 @@ function analyze () {
             // check if nodelayers exist for src and trg
             if (cc.elements['nl' + crossTalks[i].src + crossTalks[i].lvl] === undefined) {
                 var nl1 = cc.func.createNodelayer({
-                    node: 'n' + crossTalks[i].src,
-                    layer: 'l' + crossTalks[i].lvl
+                    node: crossTalks[i].src,
+                    layer: crossTalks[i].lvl
                 });
                 cc.elements['nl' + crossTalks[i].src + crossTalks[i].lvl] = nl1;
                 cc.nodelayers.push(nl1);
@@ -145,8 +145,8 @@ function analyze () {
 
             if (cc.elements['nl' + crossTalks[i].trg + crossTalks[i].lvl] === undefined) {
                 var nl2 = cc.func.createNodelayer({
-                    node: 'n' + crossTalks[i].trg,
-                    layer: 'l' + crossTalks[i].lvl
+                    node: crossTalks[i].trg,
+                    layer: crossTalks[i].lvl
                 });
                 cc.elements['nl' + crossTalks[i].trg + crossTalks[i].lvl] = nl2;
                 cc.nodelayers.push(nl2);
