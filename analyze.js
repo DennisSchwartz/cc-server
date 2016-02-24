@@ -9,7 +9,7 @@ var munemo = require('biojs-io-munemo');
 
 function analyze () {
 
-    var file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Core-Human-Notch-TGF-WNT-No-TF.csv', 'utf-8');
+    var file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Human-Notch-TGF-WNT-No-TF.csv', 'utf-8');
 
     var data = parse(file, true);
 
@@ -98,11 +98,13 @@ function analyze () {
      2. Check if edge for this cc exists
      a. Yes: increase weight of edge
      b. No: Add edge
-     3. create vis for that network.
+     3. Save maximum weight
+     4. Create vis for that network.
      */
 
     cc = munemo({inFormat: 'csv', data: ""});
 
+    var maxWeight = 0;
     for (i = 0; i < crossTalks.length; i++) {
         var ccId = 'e' + crossTalks[i].src + crossTalks[i].lvl + crossTalks[i].trg + crossTalks[i].lvl;
         if (cc.elements[ccId] === undefined) {
@@ -111,7 +113,7 @@ function analyze () {
             // check if layer exists or create
             if (cc.elements['l' + crossTalks[i].lvl] === undefined) {
                 console.log("Create new layer!");
-                var l = cc.func.createLayer('l' + crossTalks[i].lvl);
+                var l = cc.func.createLayer({ id: 'l' + crossTalks[i].lvl } );
                 cc.layers.push(l);
                 cc.elements['l' + crossTalks[i].lvl] = l;
             }
@@ -168,12 +170,14 @@ function analyze () {
                 var edge = cc.edges[k];
                 if (edge.data.id = ccId) {
                     edge.data.weight = edge.data.weight + 1;
+                    if ( edge.data.weight > maxWeight ) maxWeight = edge.data.weight;
                     break;
                 }
             }
         }
     }
-
+    cc.maxWeight = maxWeight;
+    calcPosition(cc);
     return cc;
 
 }
@@ -252,6 +256,23 @@ function arraysEqual(arr1, arr2) {
     }
 
     return true;
+}
+
+function calcPosition( network ) {
+    var radius = network.nodes.length * 150;
+    var n = network.nodes.length;
+    var segmentAngle = (2 * Math.PI) / n;
+    network.nodelayers.forEach(function (nl) {
+        var node = network.elements['n' + nl.data.node];
+        var angle = segmentAngle * network.nodes.indexOf(node);
+        var x = radius * Math.cos(angle);
+        var y = radius * Math.sin(angle);
+        nl.position = {};
+        nl.position.x = x;
+        nl.position.y = y;
+        nl.position.z = 0;
+        console.log(nl.position);
+    })
 }
 
 module.exports = analyze;
