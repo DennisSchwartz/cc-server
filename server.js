@@ -34,7 +34,12 @@ app.get("/", function (req, res, next) {
 
 app.post("/", function (req, res, next) {
     console.log("Post request received");
-    console.log(req.body);
+    // If url
+    if (req.body.type === 'url') {
+        var model = crossTalks(req.body.url);
+        res.writeHead(200, {'Content-Type': 'text/json'});
+        res.end(JSON.stringify(model));
+    }
     next();
 });
 

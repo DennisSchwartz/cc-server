@@ -13,7 +13,7 @@ function analyze (input) {
     if ( typeof input === 'undefined' ) {
         file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Human-Notch-TGF-WNT-No-TF.csv', 'utf-8');
     } else {
-        file = input;
+        file = fs.readFileSync(input, 'utf-8');
     }
 
     var data = parse(file, true);
