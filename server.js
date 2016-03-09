@@ -6,6 +6,7 @@ const PORT=8080;
 var express = require('express');
 var app = express();
 server = http.createServer(app);
+var bodyParser = require('body-parser')
 var crossTalks = require('./analyze');
 
 
@@ -21,12 +22,19 @@ var allowCrossDomain = function(req, res, next) {
 
 
 app.use('/data', express.static('data'));
+app.use(bodyParser.json());
 app.use(allowCrossDomain);
 
 app.get("/", function (req, res, next) {
     var test = crossTalks();
     res.writeHead(200, {'Content-Type': 'text/json'});
     res.end(JSON.stringify(test));
+    next();
+});
+
+app.post("/", function (req, res, next) {
+    console.log("Post request received");
+    console.log(req.body);
     next();
 });
 

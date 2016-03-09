@@ -7,15 +7,18 @@ var Baby = require("babyparse");
 var R = require("ramda");
 var munemo = require('biojs-io-munemo');
 
-function analyze () {
+function analyze (input) {
 
-    var file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Human-Notch-TGF-WNT-No-TF.csv', 'utf-8');
+    var file;
+    if ( typeof input === 'undefined' ) {
+        file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Human-Notch-TGF-WNT-No-TF.csv', 'utf-8');
+    } else {
+        file = input;
+    }
 
     var data = parse(file, true);
 
     var elements = munemo({inFormat: 'csv', data: file, opts: {paths: true}});
-
-//console.log(elements.edges);
 
     var edges = elements.edges;
     var paths = [];
@@ -32,8 +35,8 @@ function analyze () {
         var trg = edges[i].data.trgPath.split(',');
         src = filterCore(src);
         trg = filterCore(trg);
-        paths.push(src);
-        paths.push(trg);
+        if ( src != '' ) paths.push(src);
+        if ( trg != '' ) paths.push(trg);
         if (arraysEqual(src, trg)) {
             var id = edges[i].data.id;
             delete elements.elements['e' + id];
@@ -71,7 +74,7 @@ function analyze () {
         // Test for crosstalk
         for (var sCount = 0; sCount < src.length; sCount++) {
             for (var tCount = 0; tCount < trg.length; tCount++) {
-                if (src[sCount] !== trg[tCount]) {
+                if (src[sCount] !== trg[tCount] && src[sCount] !== '' && trg[tCount] !== '') {
                     cc["src"] = src[sCount];
                     cc["trg"] = trg[tCount];
                     cc["lvl"] = elements.elements[currentEdge.data.source].data.layer;
@@ -90,6 +93,7 @@ function analyze () {
     }
 
 //console.log(crossTalks);
+    //console.log(R.countBy(R.pick('lvl',crossTalks))(crossTalks));
 
 //console.log(paths); // <-- Nodes
 
@@ -106,6 +110,7 @@ function analyze () {
 
     var maxWeight = 0;
     for (i = 0; i < crossTalks.length; i++) {
+        //if ( crossTalks[i].src === '' || crossTalks[i].trg === '' ) console.log('EMPTY!');
         var ccId = 'e' + crossTalks[i].src + crossTalks[i].lvl + crossTalks[i].trg + crossTalks[i].lvl;
         if (cc.elements[ccId] === undefined) {
             //var src = cc.func.createNode(
@@ -271,7 +276,6 @@ function calcPosition( network ) {
         nl.position.x = x;
         nl.position.y = y;
         nl.position.z = 0;
-        console.log(nl.position);
     })
 }
 
