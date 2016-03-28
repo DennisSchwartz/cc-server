@@ -1,0 +1,30 @@
+{
+  "name": "cross-talk-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "dependencies": {
+    "babyparse": "^0.4.3",
+    "biojs-io-mitab": "^0.0.6",
+    "biojs-io-munemo": "^0.0.1",
+    "body-parser": "^1.15.0",
+    "browserify": "^13.0.0",
+    "express": "^4.13.4",
+    "httpdispatcher": "^1.0.0",
+    "nodemon": "^1.9.1",
+    "ramda": "^0.19.1",
+    "watchify": "^3.7.0"
+  },
+  "devDependencies": {
+    "browserify": "^13.0.0",
+    "nodemon": "^1.9.1",
+    "watchify": "^3.7.0"
+  },
+  "scripts": {
+    "watch": "watchify *.js -o build/app.js -v",
+    "build": "browserify *.js -o build/app.js",
+    "start": "npm run watch & nodemon server.js"
+  },
+  "author": "",
+  "license": "MIT"
+}

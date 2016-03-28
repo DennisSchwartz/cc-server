@@ -6,8 +6,9 @@ const PORT=8080;
 var express = require('express');
 var app = express();
 server = http.createServer(app);
-var bodyParser = require('body-parser')
+var bodyParser = require('body-parser');
 var crossTalks = require('./analyze');
+var fs = require('fs');
 
 
 
@@ -31,6 +32,32 @@ app.get("/", function (req, res, next) {
     res.end(JSON.stringify(test));
     next();
 });
+
+//app.post("/file", function (req, res, next) {
+//    console.log("Request for file received");
+//    var input = req.body.fileName;
+//    if ( typeof input === 'undefined' ) {
+//        input = 'Human-Notch-TGF-WNT-No-TF.csv';
+//    }
+//    var path = '/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + input;
+//    fs.stat(path, function(error, stat) {
+//        if (error) {
+//            // TODO: Meaningful response
+//            //response.writeHead(409, {
+//            //
+//            //});
+//            throw error;
+//        }
+//        res.writeHead(200, {
+//            'Content-Type': 'text/json',
+//            'Content-Length' : stat.size
+//        });
+//        fs.createReadStream(path).pipe(res);
+//        next()
+//    });
+//
+//    //file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + input, 'utf-8');
+//});
 
 app.post("/", function (req, res, next) {
     console.log("Post request received");

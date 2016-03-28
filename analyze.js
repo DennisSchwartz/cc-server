@@ -11,20 +11,21 @@ function analyze (input) {
 
     var file;
     if ( typeof input === 'undefined' ) {
-        file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Human-Notch-TGF-WNT-No-TF.csv', 'utf-8');
+        file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Elegans-Notch-TGF-WNT-No-TF.csv', 'utf-8');
     } else {
-        file = fs.readFileSync(input, 'utf-8');
+        file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + input, 'utf-8');
     }
+
+    console.log(input);
 
     var data = parse(file, true);
 
     var elements = munemo({inFormat: 'csv', data: file, opts: {paths: true}});
-
+    //console.log(elements);
     var edges = elements.edges;
     var paths = [];
 
 // remove any within pathway interaction
-
     var filterCore = R.map(function (e) {
         return e.split('(')[0];
     });
@@ -118,6 +119,7 @@ function analyze (input) {
             // check if layer exists or create
             if (cc.elements['l' + crossTalks[i].lvl] === undefined) {
                 console.log("Create new layer!");
+                //console.log(cc);
                 var l = cc.func.createLayer({ id: 'l' + crossTalks[i].lvl } );
                 cc.layers.push(l);
                 cc.elements['l' + crossTalks[i].lvl] = l;
@@ -183,8 +185,31 @@ function analyze (input) {
     }
     cc.maxWeight = maxWeight;
     calcPosition(cc);
-    return cc;
+    //console.log(cc);
+    var weights = {name: input};
+    cc.layers.forEach(function (l) {
+        //console.log(l.data.id.substr(1));
+        weights[l.data.id.substr(1)] = calcWeightSum(l.data.id.substr(1), cc);
+    });
+    cc.weights = weights;
+    console.log(weights);
+    //var layer = "Interactionbetweenpathwaymembers";
+    //console.log(calcWeightSum(layer, cc));
+    //var isInLayer = function (nl) {
+    //    return cc.elements.elements[nl.data.target].data.layer === layer;
+    //};
+    //var subSet = R.filter(isInLayer, cc.elements.elements);
+    //console.log(subSet);
+    //console.log(cc.func.getWeights("Interactionbetweenpathwaymembers"));
 
+
+
+    //cc.func.calcVertexDegrees(function () {
+    //
+    //}, function (avg) {
+    //    console.log("Average vertex degree: " + avg);
+    return cc;
+    //});
 }
 
 //console.log(JSON.stringify(cc));
@@ -241,6 +266,33 @@ function analyze (input) {
 //
 //console.log(object);
 
+function calcWeightSum(layer, network) {
+    var subSet = {};
+    if (layer !== undefined) {
+        // filter just this layer.
+        for (var e2 in network.elements) {
+            if (network.elements.hasOwnProperty(e2)){
+                var current = network.elements[e2];
+                if (current.group === 'edges') {
+                    if (network.elements[current.data.target].data.layer === layer) {
+                        subSet[e2] = current;
+                    }
+                }
+            }
+        }
+    } else {
+        subSet = network.elements;
+    }
+    // Count interactions in this layer
+    var sum = 0;
+    for (var o in subSet) {
+        if (subSet.hasOwnProperty(o)) {
+            sum += subSet[o].data.weight;
+        }
+    }
+    return sum;
+
+}
 
 function parse(input, header) {
     input = input.replace(/ /g, ''); //remove whitespace
