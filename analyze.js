@@ -6,6 +6,8 @@ var fs = require("fs");
 var Baby = require("babyparse");
 var R = require("ramda");
 var munemo = require('biojs-io-munemo');
+var mathjs = require('mathjs');
+var csvWriter = require('csv-write-stream')
 
 function analyze (input) {
 
@@ -16,7 +18,6 @@ function analyze (input) {
         file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + input, 'utf-8');
     }
 
-    console.log(input);
 
     var data = parse(file, true);
 
@@ -192,24 +193,95 @@ function analyze (input) {
         weights[l.data.id.substr(1)] = calcWeightSum(l.data.id.substr(1), cc);
     });
     cc.weights = weights;
-    console.log(weights);
-    //var layer = "Interactionbetweenpathwaymembers";
-    //console.log(calcWeightSum(layer, cc));
-    //var isInLayer = function (nl) {
-    //    return cc.elements.elements[nl.data.target].data.layer === layer;
-    //};
-    //var subSet = R.filter(isInLayer, cc.elements.elements);
-    //console.log(subSet);
-    //console.log(cc.func.getWeights("Interactionbetweenpathwaymembers"));
+    cc.func.createMultiplexAdjacencyArray();
+    cc.func.calcVertexDegrees();
+    cc.func.calcLayerStrength();
+    var network = cc;
+
+    console.log(network.aggregatedAdjacencyMatrix);
+    console.log(network.layerStrength);
+
+    // Sort for cross file comparison:
+    var fsort = R.sortBy(R.path(['data', 'id']));
+    network.nodes = fsort(network.nodes);
 
 
-
-    //cc.func.calcVertexDegrees(function () {
+    ///**
+    // *  calculate Entropy of multiplex degree
+    // */
     //
-    //}, function (avg) {
-    //    console.log("Average vertex degree: " + avg);
+    //var entropy = {};
+    //// For each node
+    //for (var n = 0; n < network.nodes.length; n++ ) {
+    //    var node = network.nodes[n];
+    //    var o_i = R.sum(node.data.degree);
+    //    var H_i = 0;
+    //    // And for each layer
+    //    for ( l = 0; l < network.layers.length; l++ ) {
+    //        var k_ixa = node.data.degree[l];
+    //        var frac = k_ixa / o_i;
+    //        H_i += k_ixa > 0 ? frac * Math.log(frac) : 0;
+    //    }
+    //    H_i = -1 * H_i;
+    //    node.data.H_i = H_i;
+    //    entropy[node.data.id.substr(1)] = H_i;
+    //}
+    network.func.calcDegreeEntropy();
+    console.log(network.metrics.degreeEntropy);
+
+
+    ///**
+    // *  calculate the multiplex participation coefficient
+    // */
+    //var participationCoeff = {};
+    //for ( var n = 0; n < network.nodes.length; n++ ) {
+    //    var node = network.nodes[n];
+    //    var o_i = R.sum(node.data.degree);
+    //    var M = network.layers.length;
+    //    var factor = M / (M-1);
+    //    var sum = 0;
+    //    for ( l = 0; l < network.layers.length; l++ ) {
+    //        var k_ixa = node.data.degree[l];
+    //        var frac = k_ixa / o_i;
+    //        sum += Math.pow(frac, 2);
+    //    }
+    //    var P_i = factor * ( 1 - sum );
+    //    node.data.P_i = P_i;
+    //    participationCoeff[node.data.id.substr(1)] = P_i;
+    //}
+    network.func.calcParticipationCoefficient();
+    var participationCoeff = network.metrics.participationCoefficients;
+    console.log(participationCoeff);
+    participationCoeff.name = input;
+    var pw = new csvWriter();
+    pw.pipe(fs.createWriteStream('Participation.csv', {'flags': 'a'}));
+    pw.write(participationCoeff);
+
+    /**
+     * Save results to file!
+     */
+
+    var layerIDs = R.map(function (i) { return i.data['id'] }, network.layers);
+    layerIDs.unshift('node');
+    var writer = csvWriter({headers: layerIDs});
+    writer.pipe(fs.createWriteStream('Degrees-' + input));
+    cc.nodes.forEach(function (n) {
+        var res = n.data.degree;
+        res.unshift(n.data.id.substr(1));
+        writer.write(res);
+    });
+    //writer.pipe(fs.createWriteStream('Entropy-' + input));
+    //writer.write(entropy);
+    var entropy = network.metrics.degreeEntropy;
+    writer.end();
+    entropy.name = input;
+    var w2 = csvWriter();
+    w2.pipe(fs.createWriteStream('Entropy.csv', {'flags': 'a'}));
+    w2.write(entropy);
+    w2.end();
+
+
     return cc;
-    //});
 }
 
 //console.log(JSON.stringify(cc));

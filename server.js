@@ -9,15 +9,18 @@ server = http.createServer(app);
 var bodyParser = require('body-parser');
 var crossTalks = require('./analyze');
 var fs = require('fs');
+var munemo = require('biojs-io-munemo');
+var utils = require('./utils');
 
 
 
 //CORS middleware
 var allowCrossDomain = function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', 'http://localhost:9090');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-
+    //res.header('Access-Control-Allow-Origin', 'http://localhost:9090');
+    //res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    //res.header('Access-Control-Allow-Headers', 'Content-Type');
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Application, Accept");
     next();
 };
 
@@ -67,6 +70,44 @@ app.post("/", function (req, res, next) {
         res.writeHead(200, {'Content-Type': 'text/json'});
         res.end(JSON.stringify(model));
     }
+    next();
+});
+
+app.post("/create", function (req, res, next) {
+    console.log("Creating Network Model");
+    var network;
+    if (req.body.type === 'url') {
+        var file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + req.body.url, 'utf-8');
+        network = munemo({inFormat: 'csv', data: file});
+    } else if (req.body.type === 'file') {
+        network = munemo({inFormat: 'csv', data: req.body.file});
+    }
+
+    // Sort for cross file comparison:
+    var fsort = R.sortBy(R.path(['data', 'id']));
+    network.nodes = fsort(network.nodes);
+
+    var weights = {name: input};
+    network.layers.forEach(function (l) {
+        //console.log(l.data.id.substr(1));
+        weights[l.data.id.substr(1)] = calcWeightSum(l.data.id.substr(1), cc);
+    });
+    network.weights = weights;
+    network.func.createMultiplexAdjacencyArray();
+    network.func.calcVertexDegrees();
+    network.func.calcLayerStrength();
+    network.func.calcDegreeEntropy();
+    network.func.calcParticipationCoefficient();
+    res.writeHead(200, {'Content-Type': 'text/json'});
+    res.end(JSON.stringify(network));
+    next();
+});
+
+app.post("/aggregate", function (req, res, next) {
+    var network = JSON.parse(req.body.network);
+    var agg = utils.aggregate(network);
+    res.writeHead(200, {'Content-Type': 'text/json'});
+    res.end(JSON.stringify(agg));
     next();
 });
 
