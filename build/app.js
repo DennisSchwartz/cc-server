@@ -207,48 +207,51 @@ function analyze (input) {
     network.nodes = fsort(network.nodes);
 
 
-    /**
-     *  calculate Entropy of multiplex degree
-     */
+    ///**
+    // *  calculate Entropy of multiplex degree
+    // */
+    //
+    //var entropy = {};
+    //// For each node
+    //for (var n = 0; n < network.nodes.length; n++ ) {
+    //    var node = network.nodes[n];
+    //    var o_i = R.sum(node.data.degree);
+    //    var H_i = 0;
+    //    // And for each layer
+    //    for ( l = 0; l < network.layers.length; l++ ) {
+    //        var k_ixa = node.data.degree[l];
+    //        var frac = k_ixa / o_i;
+    //        H_i += k_ixa > 0 ? frac * Math.log(frac) : 0;
+    //    }
+    //    H_i = -1 * H_i;
+    //    node.data.H_i = H_i;
+    //    entropy[node.data.id.substr(1)] = H_i;
+    //}
+    network.func.calcDegreeEntropy();
+    console.log(network.metrics.degreeEntropy);
 
-    var entropy = {};
-    // For each node
-    for (var n = 0; n < network.nodes.length; n++ ) {
-        var node = network.nodes[n];
-        var o_i = R.sum(node.data.degree);
-        var H_i = 0;
-        // And for each layer
-        for ( l = 0; l < network.layers.length; l++ ) {
-            var k_ixa = node.data.degree[l];
-            var frac = k_ixa / o_i;
-            H_i += k_ixa > 0 ? frac * Math.log(frac) : 0;
-        }
-        H_i = -1 * H_i;
-        node.data.H_i = H_i;
-        entropy[node.data.id.substr(1)] = H_i;
-    }
-    console.log(entropy);
 
-
-    /**
-     *  calculate the multiplex participation coefficient
-     */
-    var participationCoeff = {};
-    for ( var n = 0; n < network.nodes.length; n++ ) {
-        var node = network.nodes[n];
-        var o_i = R.sum(node.data.degree);
-        var M = network.layers.length;
-        var factor = M / (M-1);
-        var sum = 0;
-        for ( l = 0; l < network.layers.length; l++ ) {
-            var k_ixa = node.data.degree[l];
-            var frac = k_ixa / o_i;
-            sum += Math.pow(frac, 2);
-        }
-        var P_i = factor * ( 1 - sum );
-        node.data.P_i = P_i;
-        participationCoeff[node.data.id.substr(1)] = P_i;
-    }
+    ///**
+    // *  calculate the multiplex participation coefficient
+    // */
+    //var participationCoeff = {};
+    //for ( var n = 0; n < network.nodes.length; n++ ) {
+    //    var node = network.nodes[n];
+    //    var o_i = R.sum(node.data.degree);
+    //    var M = network.layers.length;
+    //    var factor = M / (M-1);
+    //    var sum = 0;
+    //    for ( l = 0; l < network.layers.length; l++ ) {
+    //        var k_ixa = node.data.degree[l];
+    //        var frac = k_ixa / o_i;
+    //        sum += Math.pow(frac, 2);
+    //    }
+    //    var P_i = factor * ( 1 - sum );
+    //    node.data.P_i = P_i;
+    //    participationCoeff[node.data.id.substr(1)] = P_i;
+    //}
+    network.func.calcParticipationCoefficient();
+    var participationCoeff = network.metrics.participationCoefficients;
     console.log(participationCoeff);
     participationCoeff.name = input;
     var pw = new csvWriter();
@@ -270,6 +273,7 @@ function analyze (input) {
     });
     //writer.pipe(fs.createWriteStream('Entropy-' + input));
     //writer.write(entropy);
+    var entropy = network.metrics.degreeEntropy;
     writer.end();
     entropy.name = input;
     var w2 = csvWriter();
@@ -1409,37 +1413,37 @@ var Munemo = function ( input ) {
         return network.edges.length;
     };
     var getWeights = function (layer) {
-    //    var subSet = 'init!';//network.elements;
-    //    if (layer) {
-    //        subSet = {};
-    //        // filter just this layer.
-    //        var isInLayer = function (nl) {
-    //            return network.elements.elements[nl.data.target].data.layer === layer;
-    //        };
-    //        for (var e in network.elements.elements) {
-    //            subSet = "here!";
-    //            if (network.elements.elements.hasOwnProperty(e)){
-    //                if (e.group === 'edges') {
-    //                    subSet = "here!";
-    //                    if (network.elements.elements[e.data.target].data.layer === layer) {
-    //                        subSet[e.data.id] = e;
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
-    //    var sum = 0;
-    //    for (var o in subSet) {
-    //        if (subSet.hasOwnProperty(o)) {
-    //            sum += o.data.weight;
-    //        }
-    //    }
-    //    //R.map(function (e) {
-    //    //    console.log(e);
-    //    //    sum += e.data.weight;
-    //    //}, subSet);
-    //
-    //    return subSet;
+        //    var subSet = 'init!';//network.elements;
+        //    if (layer) {
+        //        subSet = {};
+        //        // filter just this layer.
+        //        var isInLayer = function (nl) {
+        //            return network.elements.elements[nl.data.target].data.layer === layer;
+        //        };
+        //        for (var e in network.elements.elements) {
+        //            subSet = "here!";
+        //            if (network.elements.elements.hasOwnProperty(e)){
+        //                if (e.group === 'edges') {
+        //                    subSet = "here!";
+        //                    if (network.elements.elements[e.data.target].data.layer === layer) {
+        //                        subSet[e.data.id] = e;
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    }
+        //    var sum = 0;
+        //    for (var o in subSet) {
+        //        if (subSet.hasOwnProperty(o)) {
+        //            sum += o.data.weight;
+        //        }
+        //    }
+        //    //R.map(function (e) {
+        //    //    console.log(e);
+        //    //    sum += e.data.weight;
+        //    //}, subSet);
+        //
+        //    return subSet;
     };
 
 
@@ -1454,7 +1458,7 @@ var Munemo = function ( input ) {
         var nodeIDs = createIdList(network.nodes);
         console.log("Created ID lists");
         for ( i = 0; i < layerIDs.length; i++ ) {
-            A[i] = mathjs.zeros(network.nodes.length, network.nodes.length);
+            A[i] = mathjs.zeros(network.nodes.length, network.nodes.length, 'sparse');
         }
         console.log("Matrices initialized!");
         // Get connections
@@ -1468,15 +1472,18 @@ var Munemo = function ( input ) {
             var j = nodeIDs.indexOf('n' + trgNL.data.node);
             A[alpha] = mathjs.subset(A_alpha, mathjs.index(i, j), e.data.weight);
             counter++;
-            process.stdout.write("Creating adjacency tensor: " + ( (counter / network.edges.length) * 100 ) + "% done... \r");
+            process.stdout.write("Creating adjacency tensor: " + ( (counter / network.edges.length) * 100 ).toFixed(2) + "% done... \r");
         });
         network.adjacencyMatrix = A;
 
         // create aggregated overlapping adjacency matrix
+        console.log("Creating aggregated overlapping adjacency matrix...");
         var o = mathjs.zeros(A[0].size()[0], A[0].size()[1]);
         for ( i = 0; i < A.length; i++ ) {
+            process.stdout.write("Adding layer " + (i + 1) + " / " + A.length + "\r");
             o = mathjs.add(o, A[i]);
         }
+        console.log("Done!");
         // Normalize to ones and zeros:
         var t = o.map(function (value, index, matrix) {
             return value > 0 ? 1 : 0;
@@ -1487,32 +1494,41 @@ var Munemo = function ( input ) {
     };
 
     var calcVertexDegrees = function () {
+        console.log("Calculating vertex degrees for nodes.");
         // Do it for nodes only
         if (!network.adjacencyMatrix) network.createMultiplexAdjacencyArray();
         var A = network.adjacencyMatrix;
+
+        // Initialize node degrees
+        for ( i = 0; i < network.nodes.length; i++ ) {
+            network.nodes[i].data.degree = Array.apply(null, Array(A.length)).map(Number.prototype.valueOf,0);
+            process.stdout.write("Initialising nodes: " +
+                ( (i / network.nodes.length) * 100 ).toFixed(2) + "% \r");
+        }
+
+        var max = A.length * A[0].size()[0] * A[0].size()[1];
+        var counter = 0;
         for ( i = 0; i < A.length; i++ ) {
             A[i].forEach(function (value, index, matrix) {
-                var src = network.nodes[index[0]];
-                var trg = network.nodes[index[1]];
-                if (src.data.degree.length <= i) {
-                    src.data.degree.push(value);
+                if (value > 0) {
+                    network.nodes[index[0]].data.degree[i] += value;
+                    network.nodes[index[1]].data.degree[i] += value;
+                    counter++;
                 }
-                if (trg.data.degree.length <= i) {
-                    trg.data.degree.push(value);
-                } else {
-                    src.data.degree[i] += value;
-                    trg.data.degree[i] += value;
-                }
+                //process.stdout.write("Calculating vertex degrees: " +
+                //    ( (counter / max) * 100 ).toFixed(2) + "% \r");
             });
         }
+        console.log("\nDone!");
     };
 
     var calcLayerStrength = function () {
+        console.log("Calculating layer strengths (sum of all node degrees per layer)");
         var strength = mathjs.zeros(network.layers.length);
         network.nodes.forEach(function (n) {
             strength = mathjs.add(strength, n.data.degree);
         });
-            network.layerStrength = strength;
+        network.metrics.layerStrength = strength;
     };
 
     var calcNodelayerDegrees = function (done, step) {
@@ -1536,13 +1552,63 @@ var Munemo = function ( input ) {
         network.metrics.averageNodelayerDegree = avg;
     };
 
+    /**
+     *  calculate Entropy of multiplex degree
+     */
+    var calcDegreeEntropy = function () {
+        var entropy = {};
+        // For each node
+        for (var n = 0; n < network.nodes.length; n++ ) {
+            var node = network.nodes[n];
+            var o_i = R.sum(node.data.degree);
+            var H_i = 0;
+            // And for each layer
+            for ( l = 0; l < network.layers.length; l++ ) {
+                var k_ixa = node.data.degree[l];
+                var frac = k_ixa / o_i;
+                H_i += k_ixa > 0 ? frac * Math.log(frac) : 0;
+            }
+            H_i = -1 * H_i;
+            node.data.H_i = H_i;
+            entropy[node.data.id.substr(1)] = H_i;
+        }
+        network.metrics.degreeEntropy = entropy;
+    };
+
+    /**
+     *  calculate the multiplex participation coefficient
+     */
+    var calcParticipationCoefficient = function () {
+        console.log("Calculating the participation coefficients...");
+        var participationCoeff = {};
+        for ( var n = 0; n < network.nodes.length; n++ ) {
+            var node = network.nodes[n];
+            var o_i = R.sum(node.data.degree);
+            var M = network.layers.length;
+            var factor = M / (M-1);
+            var sum = 0;
+            for ( l = 0; l < network.layers.length; l++ ) {
+                var k_ixa = node.data.degree[l];
+                var frac = k_ixa / o_i;
+                sum += Math.pow(frac, 2);
+            }
+            var P_i = factor * ( 1 - sum );
+            node.data.P_i = P_i;
+            process.stdout.write("Progress: " +
+                ( (n / network.nodes.length) * 100 ).toFixed(2) + "% \r");
+            participationCoeff[node.data.id.substr(1)] = P_i;
+        }
+                network.metrics.participationCoefficients = participationCoeff;
+    };
+
+
     var calcDegreeOfMultiplexity = function () {
         /*
-            One can calculate the degree of multiplexity for a multiplex network
-            by counting the number of node pairs that have multiple edge types
-            between them divided by the total number of adjacent node pairs [254].
-            (One can analogously calculate a node’s degree of multiplexity by considering
-            all pairs of a node and its neighbours.)
+         One can calculate the degree of multiplexity for a multiplex network
+         by counting the number of node pairs that have multiple edge types
+         between them divided by the total number of adjacent node pairs [254].
+         (One can analogously calculate a node’s degree of multiplexity by considering
+         all pairs of a node and its neighbours.)
          */
         //var interlayer = 0;
         //var intralayer = 0;
@@ -1560,10 +1626,10 @@ var Munemo = function ( input ) {
 
 
     /*
-        One example of this is interdependence,which is defined as the ratio of the number
-        of shortest paths that traverse more than one layer to the total number of shortest
-        paths [72,240]. When defining a walk o
-    */
+     One example of this is interdependence,which is defined as the ratio of the number
+     of shortest paths that traverse more than one layer to the total number of shortest
+     paths [72,240]. When defining a walk o
+     */
 
 
     /*
@@ -1577,16 +1643,15 @@ var Munemo = function ( input ) {
         createLayer: createLayer,
         createNodelayer: createNodelayer,
         createEdge: createEdge,
+        createMultiplexAdjacencyArray: createMultiplexAdjacencyArray,
+        getEdgeCount: edgeCount,
+        getVertexCount: vertexCount,
+        getWeights: getWeights,
         calcVertexDegrees: calcVertexDegrees,
         calcNodelayerDegrees: calcNodelayerDegrees,
-        edgeCount: edgeCount,
-        vertexCount: vertexCount,
-        getWeights: getWeights,
-        createMultiplexAdjacencyArray: createMultiplexAdjacencyArray,
         calcLayerStrength: calcLayerStrength,
-        add: function( data ) {
-
-        }
+        calcDegreeEntropy: calcDegreeEntropy,
+        calcParticipationCoefficient: calcParticipationCoefficient
     };
 
 
@@ -1674,6 +1739,7 @@ function parse (input, header) {
 
 
 module.exports = Munemo;
+
 }).call(this,require('_process'))
 },{"_process":272,"babyparse":2,"mathjs":376,"ramda":4}],4:[function(require,module,exports){
 //  Ramda v0.18.0
@@ -129474,6 +129540,7 @@ var crossTalks = require('./analyze');
 var fs = require('fs');
 var munemo = require('biojs-io-munemo');
 var utils = require('./utils');
+var R = require("ramda");
 
 
 
@@ -129530,6 +129597,7 @@ app.post("/", function (req, res, next) {
     // If url
     if (req.body.type === 'url') {
         var model = crossTalks(req.body.url);
+        console.log(model);
         res.writeHead(200, {'Content-Type': 'text/json'});
         res.end(JSON.stringify(model));
     }
@@ -129545,10 +129613,31 @@ app.post("/create", function (req, res, next) {
     } else if (req.body.type === 'file') {
         network = munemo({inFormat: 'csv', data: req.body.file});
     }
+
+    // Sort for cross file comparison:
+    var fsort = R.sortBy(R.path(['data', 'id']));
+    network.nodes = fsort(network.nodes);
+    console.log("Number of Nodes: ", network.nodes.length);
+    console.log("Number of Nodelayers: ", network.nodelayers.length);
+    console.log("Number of Layers: ", network.layers.length);
+
+    var weights = {name: req.body.url};
+    network.layers.forEach(function (l) {
+        //console.log(l.data.id.substr(1));
+        weights[l.data.id.substr(1)] = calcWeightSum(l.data.id.substr(1), network);
+    });
+    network.weights = weights;
     network.func.createMultiplexAdjacencyArray();
-    console.log("Created Adjencancy Tensor!");
     network.func.calcVertexDegrees();
     network.func.calcLayerStrength();
+    network.func.calcDegreeEntropy();
+    network.func.calcParticipationCoefficient();
+
+    // Save to file
+    var date = new Date();
+    var ws = fs.createWriteStream(date.toISOString() + "-" + req.body.url.split('.')[0] + ".json");
+    ws.write(JSON.stringify(network));
+    ws.end();
     res.writeHead(200, {'Content-Type': 'text/json'});
     res.end(JSON.stringify(network));
     next();
@@ -129593,7 +129682,35 @@ server.listen(PORT, function(){
     console.log("Server listening on: http://localhost:%s", PORT);
 });
 
-},{"./analyze":1,"./utils":867,"biojs-io-munemo":3,"body-parser":5,"express":309,"fs":56,"http":292}],867:[function(require,module,exports){
+
+function calcWeightSum(layer, network) {
+    var subSet = {};
+    if (layer !== undefined) {
+        // filter just this layer.
+        for (var e2 in network.elements) {
+            if (network.elements.hasOwnProperty(e2)){
+                var current = network.elements[e2];
+                if (current.group === 'edges') {
+                    if (network.elements[current.data.target].data.layer === layer) {
+                        subSet[e2] = current;
+                    }
+                }
+            }
+        }
+    } else {
+        subSet = network.elements;
+    }
+    // Count interactions in this layer
+    var sum = 0;
+    for (var o in subSet) {
+        if (subSet.hasOwnProperty(o)) {
+            sum += subSet[o].data.weight;
+        }
+    }
+    return sum;
+
+}
+},{"./analyze":1,"./utils":867,"biojs-io-munemo":3,"body-parser":5,"express":309,"fs":56,"http":292,"ramda":865}],867:[function(require,module,exports){
 /**
  * Created by ds on 28/03/2016.
  */

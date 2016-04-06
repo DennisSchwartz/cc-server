@@ -11,6 +11,7 @@ var crossTalks = require('./analyze');
 var fs = require('fs');
 var munemo = require('biojs-io-munemo');
 var utils = require('./utils');
+var R = require("ramda");
 
 
 
@@ -67,6 +68,7 @@ app.post("/", function (req, res, next) {
     // If url
     if (req.body.type === 'url') {
         var model = crossTalks(req.body.url);
+        console.log(model);
         res.writeHead(200, {'Content-Type': 'text/json'});
         res.end(JSON.stringify(model));
     }
@@ -86,11 +88,14 @@ app.post("/create", function (req, res, next) {
     // Sort for cross file comparison:
     var fsort = R.sortBy(R.path(['data', 'id']));
     network.nodes = fsort(network.nodes);
+    console.log("Number of Nodes: ", network.nodes.length);
+    console.log("Number of Nodelayers: ", network.nodelayers.length);
+    console.log("Number of Layers: ", network.layers.length);
 
-    var weights = {name: input};
+    var weights = {name: req.body.url};
     network.layers.forEach(function (l) {
         //console.log(l.data.id.substr(1));
-        weights[l.data.id.substr(1)] = calcWeightSum(l.data.id.substr(1), cc);
+        weights[l.data.id.substr(1)] = calcWeightSum(l.data.id.substr(1), network);
     });
     network.weights = weights;
     network.func.createMultiplexAdjacencyArray();
@@ -98,6 +103,12 @@ app.post("/create", function (req, res, next) {
     network.func.calcLayerStrength();
     network.func.calcDegreeEntropy();
     network.func.calcParticipationCoefficient();
+
+    // Save to file
+    var date = new Date();
+    var ws = fs.createWriteStream(date.toISOString() + "-" + req.body.url.split('.')[0] + ".json");
+    ws.write(JSON.stringify(network));
+    ws.end();
     res.writeHead(200, {'Content-Type': 'text/json'});
     res.end(JSON.stringify(network));
     next();
@@ -141,3 +152,32 @@ server.listen(PORT, function(){
     //Callback triggered when server is successfully listening. Hurray!
     console.log("Server listening on: http://localhost:%s", PORT);
 });
+
+
+function calcWeightSum(layer, network) {
+    var subSet = {};
+    if (layer !== undefined) {
+        // filter just this layer.
+        for (var e2 in network.elements) {
+            if (network.elements.hasOwnProperty(e2)){
+                var current = network.elements[e2];
+                if (current.group === 'edges') {
+                    if (network.elements[current.data.target].data.layer === layer) {
+                        subSet[e2] = current;
+                    }
+                }
+            }
+        }
+    } else {
+        subSet = network.elements;
+    }
+    // Count interactions in this layer
+    var sum = 0;
+    for (var o in subSet) {
+        if (subSet.hasOwnProperty(o)) {
+            sum += subSet[o].data.weight;
+        }
+    }
+    return sum;
+
+}
