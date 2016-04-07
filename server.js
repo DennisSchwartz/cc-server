@@ -7,11 +7,12 @@ var express = require('express');
 var app = express();
 server = http.createServer(app);
 var bodyParser = require('body-parser');
-var crossTalks = require('./analyze');
+var crossTalks = require('./cross-talk-analysis');
 var fs = require('fs');
 var munemo = require('biojs-io-munemo');
 var utils = require('./utils');
 var R = require("ramda");
+var serveIndex = require('serve-index');
 
 
 
@@ -26,7 +27,8 @@ var allowCrossDomain = function(req, res, next) {
 };
 
 
-app.use('/data', express.static('data'));
+//app.use('/data', express.static('data'));
+app.use('/data', serveIndex('data', {'icons': false}));
 app.use(bodyParser.json());
 app.use(allowCrossDomain);
 
@@ -76,21 +78,29 @@ app.post("/", function (req, res, next) {
 });
 
 app.post("/create", function (req, res, next) {
+    res.status(200).setHeader("content-type", "text/plain");
+    //var Readable = require('stream').Readable;
+    //var s = new Readable();
+    //s.pipe(res);
+    //s.push("Test!!");
+    //s.push(null);
+    //res.write('Received path: ' + req.body.url);
+    //res.send('Received path: ' + req.body.url);
     console.log("Creating Network Model");
     var network;
     if (req.body.type === 'url') {
         var file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + req.body.url, 'utf-8');
-        network = munemo({inFormat: 'csv', data: file});
+        network = munemo( { inFormat: 'csv', data: file, opts: { paths: true } });
     } else if (req.body.type === 'file') {
-        network = munemo({inFormat: 'csv', data: req.body.file});
+        network = munemo( { inFormat: 'csv', data: req.body.file, opts: { paths: true } });
     }
 
     // Sort for cross file comparison:
     var fsort = R.sortBy(R.path(['data', 'id']));
     network.nodes = fsort(network.nodes);
-    console.log("Number of Nodes: ", network.nodes.length);
-    console.log("Number of Nodelayers: ", network.nodelayers.length);
-    console.log("Number of Layers: ", network.layers.length);
+    //res.send("Number of Nodes: " + network.nodes.length);
+    //res.send("Number of Nodelayers: " +  network.nodelayers.length);
+    //res.send("Number of Layers: " + network.layers.length);
 
     var weights = {name: req.body.url};
     network.layers.forEach(function (l) {
@@ -107,10 +117,10 @@ app.post("/create", function (req, res, next) {
     // Save to file
     var date = new Date();
     var ws = fs.createWriteStream(date.toISOString() + "-" + req.body.url.split('.')[0] + ".json");
-    ws.write(JSON.stringify(network));
-    ws.end();
-    res.writeHead(200, {'Content-Type': 'text/json'});
-    res.end(JSON.stringify(network));
+    ws.write(JSON.stringify(network), function (err) {
+        ws.end();
+    });
+    res.end();//JSON.stringify(network));
     next();
 });
 
