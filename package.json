@@ -21,9 +21,9 @@
     "watchify": "^3.7.0"
   },
   "scripts": {
-    "watch": "watchify *.js -o build/app.js -v",
-    "build": "browserify *.js -o build/app.js",
-    "start": "npm run watch & nodemon server.js"
+    "watch": "watchify lib/*.js -o build/app.js -v",
+    "build": "browserify lib/*.js -o build/app.js",
+    "start": "npm run watch & nodemon lib/server.js"
   },
   "author": "",
   "license": "MIT"
