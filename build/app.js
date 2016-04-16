@@ -425,7 +425,7 @@ var network;
 //console.log(network.nodes[0]);
 
 var path = process.argv[2];
-if (!path)  path = '2016-04-06T15:10:56.804Z-Drosophila-AllPW-ExOnly-NoTF.json';
+if (!path)  path = 'Human-All-TF1-2016-04-13T09:49:10.169Z.json';
 
 file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/cross-talk-server/results/' + path, 'utf-8');
 network = JSON.parse(file);
@@ -514,6 +514,105 @@ console.log('AvgDegree: ', network.metrics.avgDegree);
 console.log('AvgLayerDegree: ', network.metrics.avgLayerDegree);
 console.log('DegPercentage: ', degPercentage);
 
+var maxDeg = {
+    data: {
+        degree: 0
+    }
+};
+network.nodelayers.forEach(function (nl) {
+    maxDeg = nl.data.degree > maxDeg.data.degree ? nl : maxDeg;
+});
+
+console.log(maxDeg);
+
+//network.func.calcNodelayerDegrees();
+
+// Extract mutual regulators for pathways
+
+var pathways = ['Hedgehog', 'WNT/Wingless'];
+var layer = 'Transcriptionalregulation';
+
+var sub = getRegulators(network, pathways, layer);
+
+//console.log(sub);
+
+//// Get edges with both in trgPath
+//
+//var transcriptSubset = R.filter(function (e) {
+//    return e.data.source.indexOf('Transcriptionalregulation') > 0;
+//}, network.edges);
+//
+//var mutual = R.filter(function (e) {
+//    return e.data.trgPath.indexOf(pathways[0]) > -1 && e.data.trgPath.indexOf(pathways[1]) > -1;
+//}, transcriptSubset);
+//
+//console.log("Mutual: ", mutual.length);
+//
+//var p1 = R.filter(function (e) {
+//    return e.data.trgPath === pathways[0] + '(core)' || e.data.trgPath === pathways[0] + '(non-core)';
+//}, transcriptSubset);
+//
+//var p1Nodes = [];
+//
+//p1.forEach(function (e) {
+//    p1Nodes.push(network.elements[e.data.source]);
+//});
+//
+//var unique = R.uniqBy(R.path(['data', 'id']));
+//
+//p1Nodes = R.difference(unique(p1Nodes), mutual);
+//
+//
+//var p2 = R.filter(function (e) {
+//    return e.data.trgPath === pathways[1] + '(core)' || e.data.trgPath === pathways[1] + '(non-core)';
+//}, transcriptSubset);
+//
+//var p2Nodes = [];
+//
+//p2.forEach(function (e) {
+//    p2Nodes.push(network.elements[e.data.source]);
+//});
+//
+//p2Nodes = R.difference(unique(p2Nodes), mutual);
+//
+//console.log("Exclusive to " + pathways[0] + ": ", p1Nodes);
+////console.log(p1Nodes.length);
+//
+//console.log("Exclusive to " + pathways[0] + ": ", p1Nodes.length);
+//console.log("Exclusive to " + pathways[1] + ": ", p2Nodes.length);
+//console.log("Mutual regulators: " + mutual.length);
+
+
+function getRegulators (network, pathways, layer) {
+
+    var unique = R.uniqBy(R.path(['data', 'id']));
+
+    var transcriptSubset = R.filter(function (e) {
+        return e.data.source.indexOf(layer) > 0;
+    }, network.edges);
+
+    var mutual = R.filter(function (e) {
+        return e.data.trgPath.indexOf(pathways[0]) > -1 && e.data.trgPath.indexOf(pathways[1]) > -1;
+    }, transcriptSubset);
+
+    var p1 = R.filter(function (e) {
+        return e.data.trgPath === pathways[0] + '(core)' || e.data.trgPath === pathways[0] + '(non-core)';
+    }, transcriptSubset);
+
+    var p2 = R.filter(function (e) {
+        return e.data.trgPath === pathways[1] + '(core)' || e.data.trgPath === pathways[1] + '(non-core)';
+    }, transcriptSubset);
+
+    p1 = R.difference(p1, mutual);
+    p2 = R.difference(p2, mutual);
+
+    console.log("Exclusive to " + pathways[0] + ": ", p1.length);
+    console.log("Exclusive to " + pathways[1] + ": ", p2.length);
+    console.log("Mutual regulators: " + mutual.length);
+
+    return { mutual: mutual, p1: p1, p2: p2 };
+
+}
 }).call(this,require('_process'))
 },{"_process":275,"biojs-io-munemo":6,"fs":59,"ramda":868}],3:[function(require,module,exports){
 //Lets require/import the HTTP module
@@ -603,43 +702,8 @@ app.post("/", function (req, res, next) {
 });
 
 app.post("/create", function (req, res, next) {
-    res.status(200).setHeader("content-type", "text/plain");
-    //var Readable = require('stream').Readable;
-    //var s = new Readable();
-    //s.pipe(res);
-    //s.push("Test!!");
-    //s.push(null);
-    //res.write('Received path: ' + req.body.url);
-    //res.send('Received path: ' + req.body.url);
-    console.log("Creating Network Model");
-    var network;
-    if (req.body.type === 'url') {
-        var file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + req.body.url, 'utf-8');
-        network = munemo( { inFormat: 'csv', data: file, opts: { paths: true } });
-    } else if (req.body.type === 'file') {
-        network = munemo( { inFormat: 'csv', data: req.body.file, opts: { paths: true } });
-    }
-
-    // Sort for cross file comparison:
-    var fsort = R.sortBy(R.path(['data', 'id']));
-    network.nodes = fsort(network.nodes);
-    network.layers = fsort(network.layers);
-    //res.send("Number of Nodes: " + network.nodes.length);
-    //res.send("Number of Nodelayers: " +  network.nodelayers.length);
-    //res.send("Number of Layers: " + network.layers.length);
-
-    var weights = {name: req.body.url};
-    network.layers.forEach(function (l) {
-        console.log(l.data.id.substr(1));
-        weights[l.data.id.substr(1)] = calcWeightSum(l.data.id.substr(1), network);
-    });
-    network.weights = weights;
-    network.func.createMultiplexAdjacencyArray();
-    network.func.calcVertexDegrees();
-    network.func.calcLayerStrength();
-    network.func.calcDegreeEntropy();
-    network.func.calcParticipationCoefficient();
-
+    res.status(200).setHeader("content-type", "application/json");
+    var network = createAndAnalyse(req);
     // Save to file
     var date = new Date();
     var ws = fs.createWriteStream('./results/' + req.body.url.split('.')[0] + "-"  + date.toISOString() + ".json");
@@ -649,6 +713,200 @@ app.post("/create", function (req, res, next) {
     });
     //console.log(networkString);
     res.end(networkString);
+    next();
+});
+
+app.post("/subset", function (req, res, next) {
+    res.status(200).setHeader("content-type", "application/json");
+    var network = createAndAnalyse(req);
+    if (!req.body.pathways) req.body.pathways = ['Hedgehog', 'WNT/Wingless'];
+    if (!req.body.layers) req.body.layers = ['Transcriptionalregulation', 'Post-transcriptionalregulation'];
+    var subEdges = utils.getRegulators(network, req.body.pathways, req.body.layers);
+    // delete old edges from network
+
+
+
+    var length = network.edges.length;
+    for ( var i = 0; i < length; i++ ) {
+        var e = network.edges.pop();
+        if (!delete network.elements['e' + e.data.id]) {
+            console.log(e.data.id + " could not be deleted!");
+        }
+    }
+
+    // fill with new edges
+    var nls = [];
+    var ls = [];
+    var ns = [];
+    for (var p in subEdges) {
+        if (subEdges.hasOwnProperty(p)) {
+            subEdges[p].forEach(function (e) {
+                network.edges.push(e);
+                network.elements['e' + e.data.id] = e;
+                var src = network.elements[e.data.source];
+                var trg = network.elements[e.data.target];
+                if (src) {
+                    nls.push(network.elements[e.data.source]);
+                    ls.push(network.elements['l' + src.data.layer]);
+                    ns.push(network.elements['n' + src.data.node]);
+                }
+                if (trg) {
+                    nls.push(network.elements[e.data.target]);
+                    ls.push(network.elements['l' + trg.data.layer]);
+                    ns.push(network.elements['n' + trg.data.node]);
+                }
+            });
+        }
+    }
+
+
+    //var eqSrc = R.pathEq(['data', 'id'], e.data.source);
+    //index = R.findIndex(eqSrc)(network.nodelayers);
+    //network.nodelayers.splice(index, 1);
+    //delete network.elements[e.data.source];
+    //
+    console.log("nls.length " + nls.length);
+
+    nls = R.uniqBy(R.path(['data', 'id']), nls);
+    ls = R.uniqBy(R.path(['data', 'id']), ls);
+    ns = R.uniqBy(R.path(['data', 'id']), ns);
+
+    var lIndices = [];
+    ls.forEach(function (l) {
+        var eql = R.pathEq(['data', 'id'], l.data.id);
+        lIndices.push(R.findIndex(eql)(network.layers));
+    });
+    console.log(lIndices);
+
+    console.log("nls.length " + nls.length);
+    console.log("Nodelayers.length: " + network.nodelayers.length);
+    console.log("elements.length: " + Object.keys(network.elements).length);
+
+    length = network.nodelayers.length;
+
+    for ( i = 0; i < length; i++ ) {
+        var nl = network.nodelayers.pop();
+        delete network.elements['nl' + nl.data.id];
+    }
+
+    console.log("Nodelayers.length: " + network.nodelayers.length);
+    console.log("elements.length: " + Object.keys(network.elements).length);
+    // Add back unique nls
+    nls.forEach(function (nl) {
+        network.elements['nl' + nl.data.id] = nl;
+        network.nodelayers.push(nl);
+    });
+
+    console.log(network.layers);
+    console.log(ls);
+    length = network.layers.length;
+    for ( i = 0; i < length; i++ ) {
+        var l = network.layers.pop();
+        delete network.elements[l.data.id];
+    }
+
+    ls.forEach(function (l) {
+        network.elements[l.data.id] = l;
+        network.layers.push(l);
+    });
+    console.log(network.layers);
+
+
+    length = network.nodes.length;
+    for ( i = 0; i < length; i++ ) {
+        var n = network.nodes.pop();
+        delete network.elements[n.data.id];
+    }
+
+
+    ns.forEach(function (n) {
+        if (n.data.degree) {
+            var news = [];
+            for (var i = 0; i < lIndices.length; i++) {
+                news[i] = n.data.degree.splice(lIndices[i],1);
+            }
+            n.data.degree = news;
+        }
+        network.elements[n.data.id] = n;
+        network.nodes.push(n);
+    });
+
+
+
+    console.log("Nodelayers.length: " + network.nodelayers.length);
+    console.log("elements.length: " + Object.keys(network.elements).length);
+    //console.log(nls);
+
+    //network.func.calcNodelayerDegrees();
+    //
+    //
+    //length = network.nodelayers.length;
+    //console.log("length: " + length);
+    //for ( i = 0; i < length; i++ ) {
+    //    var nl = network.nodelayers.pop();
+    //    if (nl.data.degree > 0) {
+    //        network.nodelayers.unshift(nl);
+    //    } else {
+    //        delete network.elements['nl' + nl.data.id];
+    //        console.log("Deleting nodelayer! \r");
+    //    }
+    //    //process.stdout.write("Deleting nls w/ deg == 0: " + ( (i / length) * 100 ).toFixed(2) + "% \r");
+    //    //process.stdout.write("Deleting nls w/ deg == 0: " + nl.data.degree + "\r");
+    //    console.log(nl.data.degree);
+    //
+    //}
+    //console.log("\n" + network.nodelayers.length);
+
+    //nls = R.uniq(nls);
+    //
+    //var nodes = {
+    //    ids: [],
+    //    elements: {}
+    //};
+    //
+    //
+    //for ( i = 0; i < network.nodelayers.length; i++ ) {
+    //    if (!R.contains('nl' + network.nodelayers[i].data.id, nls)) {
+    //        network.nodelayers.splice(i, 1);
+    //        delete network.elements['nl' + network.nodelayers[i].data.id];
+    //    } else {
+    //        var nodeID = 'n' + network.nodelayers[i].data.node;
+    //        nodes.elements[nodeID] = network.elements[nodeID];
+    //        nodes.ids.push(nodeID);
+    //    }
+    //}
+    //console.log(network.nodelayers.length);
+    //console.log(Object.keys(network.elements).length);
+    //
+    //
+    //for (var el in network.elements) {
+    //    if (network.elements.hasOwnProperty(el)) {
+    //        if (el.group === 'nodes') delete network.elements[el];
+    //    }
+    //}
+    //for (el in nodes.elements) {
+    //    if (nodes.elements.hasOwnProperty(el)) {
+    //        network.elements[el] = nodes.elements[el];
+    //    }
+    //}
+    //
+    //var newNodes = [];
+    //nodes.ids.forEach(function (n) {
+    //    for ( var j = 0; j < network.nodes.length; j++ ) {
+    //        if (network.nodes[j].data.id === n) {
+    //            newNodes.push(network.nodes[j]);
+    //            break;
+    //        }
+    //    }
+    //});
+    //network.nodes = newNodes;
+
+    //Possibly: Remove NLs not on given layers
+
+    //console.log(network.nodes);
+
+
+    res.end(JSON.stringify(network));
     next();
 });
 
@@ -719,12 +977,47 @@ function calcWeightSum(layer, network) {
     return sum;
 
 }
+
+function createAndAnalyse (req) {
+    console.log("Creating Network Model");
+    var network;
+    if (req.body.type === 'url') {
+        var file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + req.body.url, 'utf-8');
+        network = munemo( { inFormat: 'csv', data: file, opts: { paths: true } });
+    } else if (req.body.type === 'file') {
+        network = munemo( { inFormat: 'csv', data: req.body.file, opts: { paths: true } });
+    }
+
+    // Sort for cross file comparison:
+    var fsort = R.sortBy(R.path(['data', 'id']));
+    network.nodes = fsort(network.nodes);
+    network.layers = fsort(network.layers);
+    //res.send("Number of Nodes: " + network.nodes.length);
+    //res.send("Number of Nodelayers: " +  network.nodelayers.length);
+    //res.send("Number of Layers: " + network.layers.length);
+
+    var weights = {name: req.body.url};
+    network.layers.forEach(function (l) {
+        console.log(l.data.id.substr(1));
+        weights[l.data.id.substr(1)] = calcWeightSum(l.data.id.substr(1), network);
+    });
+    network.weights = weights;
+    network.func.createMultiplexAdjacencyArray();
+    network.func.calcVertexDegrees();
+    network.func.calcNodelayerDegrees();
+    network.func.calcLayerStrength();
+    network.func.calcDegreeEntropy();
+    network.func.calcParticipationCoefficient();
+
+    return network;
+}
 },{"./cross-talk-analysis":1,"./utils":4,"biojs-io-munemo":6,"body-parser":8,"express":312,"fs":59,"http":295,"ramda":868,"serve-index":869}],4:[function(require,module,exports){
 /**
  * Created by ds on 28/03/2016.
  */
 
 var munemo = require('biojs-io-munemo');
+var R = require('ramda');
 
 var utils = {
 
@@ -858,11 +1151,64 @@ var utils = {
         //
         //
         //}
-    }
+    },
+    getRegulators: function (network, pathways, layers) {
+
+        var unique = R.uniqBy(R.path(['data', 'id']));
+
+        var transcriptSubset = R.filter(function (e) {
+            var inLayers = false;
+            for ( var i = 0; i < layers.length; i++ ) {
+                inLayers = e.data.source.indexOf(layers[i]) > 0;
+                if (inLayers) break;
+            }
+            return inLayers
+        }, network.edges);
+
+        var mutual = R.filter(function (e) {
+            return e.data.trgPath.indexOf(pathways[0]) > -1 && e.data.trgPath.indexOf(pathways[1]) > -1;
+        }, transcriptSubset);
+
+        var p1 = R.filter(function (e) {
+            return e.data.trgPath === pathways[0] + '(core)' || e.data.trgPath === pathways[0] + '(non-core)';
+        }, transcriptSubset);
+
+        var p2 = R.filter(function (e) {
+            return e.data.trgPath === pathways[1] + '(core)' || e.data.trgPath === pathways[1] + '(non-core)';
+        }, transcriptSubset);
+
+        p1 = R.difference(p1, mutual);
+        p2 = R.difference(p2, mutual);
+
+        console.log("Exclusive to " + pathways[0] + ": ", p1.length);
+        console.log("Exclusive to " + pathways[1] + ": ", p2.length);
+        console.log("Mutual regulators: " + mutual.length);
+
+        return { mutual: mutual, p1: p1, p2: p2 };
+
+    }//,
+    //newNetFromEdges: function (edges) {
+    //    var newNet = munemo({inFormat: 'csv', data: ""});
+    //
+    //    newNet.elements.edges = edges;
+    //    edges.forEach(function (e) {
+    //        // Add to edgelist
+    //        newNet.elements.elements['e' + e.data.id] = e;
+    //        // Check if NL exist
+    //        if ( newNet.elements.elements[e.data.source] === undefined ) {
+    //            //
+    //        }
+    //        // If not check for nodes and layers
+    //
+    //        // Create anyting that's missing
+    //
+    //
+    //    });
+    //}
 };
 
 module.exports = utils;
-},{"biojs-io-munemo":6}],5:[function(require,module,exports){
+},{"biojs-io-munemo":6,"ramda":868}],5:[function(require,module,exports){
 /*
 	Baby Parse
 	v0.4.1
@@ -1751,6 +2097,8 @@ var Munemo = function ( input ) {
         var layerIndices = [];
         var srcPathIndex;
         var trgPathIndex;
+        var srcTopIndex;
+        var trgTopIndex;
         var i;
         for (i = 0; i < fields.length; i++) {
             if (fields[i] === Options.sourceFieldLabel || fields[i] === 'source_name' || fields[i] === 'source' ) sourceIndex = i;
@@ -1759,6 +2107,8 @@ var Munemo = function ( input ) {
             if (fields[i] === ( Options.layerFieldLabel || 'layer' )) layerIndices.push(i);
             if (fields[i] === ( 'source_pathways' )) srcPathIndex = i;
             if (fields[i] === ( 'target_pathways' )) trgPathIndex = i;
+            if (fields[i] === ( 'source_topology' )) srcTopIndex = i;
+            if (fields[i] === ( 'target_topology' )) trgTopIndex = i;
         }
 
         //console.log(sourceIndex);
@@ -1785,12 +2135,22 @@ var Munemo = function ( input ) {
                 elements['l' + srcLayer] = newLayer;
                 layers.push(newLayer);
             }
+            // Pathways
+            var srcPath;
+            var trgPath;
+            if (Options.paths) {
+                // Source pathways
+                srcPath = line[srcPathIndex];
+                trgPath = line[trgPathIndex];
+            }
             // Create source node-layer from those two
             if (!elements['nl' + srcNode + srcLayer]) {
                 var newNodeLayer = createNodelayer({
                     node: srcNode,
                     layer: srcLayer
                 });
+                if (srcTopIndex) { newNodeLayer.data.srcTopology = line[srcTopIndex] }
+                if (Options.paths) newNodeLayer.data.pathways = srcPath.split(',');
                 elements['nl' + srcNode + srcLayer] = newNodeLayer;
                 nodelayers.push(newNodeLayer);
             }
@@ -1818,17 +2178,12 @@ var Munemo = function ( input ) {
                     node: trgNode,
                     layer: trgLayer
                 });
+                if (srcTopIndex) { newNodeLayer.data.srcTopology = line[srcTopIndex] }
+                if (Options.paths) newNodeLayer.data.pathways = trgPath.split(',');
                 elements['nl' + trgNode + trgLayer] = newNodeLayer;
                 nodelayers.push(newNodeLayer);
             }
-            // Pathways
-            var srcPath;
-            var trgPath;
-            if (Options.paths) {
-                // Source pathways
-                srcPath = line[srcPathIndex];
-                trgPath = line[trgPathIndex];
-            }
+
             // create new edge
             if (!elements['e' + srcNode + srcLayer + trgNode + trgLayer]) {
                 var newEdge = createEdge({
@@ -1837,6 +2192,10 @@ var Munemo = function ( input ) {
                     srcPath: srcPath,
                     trgPath: trgPath
                 });
+                if (srcTopIndex && trgTopIndex) {
+                    newEdge.data.srcTopology = line[srcTopIndex];
+                    newEdge.data.trgTopology = line[trgTopIndex];
+                }
                 elements['e' + srcNode + srcLayer + trgNode + trgLayer] = newEdge;
                 edges.push(newEdge);
 
@@ -2005,7 +2364,7 @@ var Munemo = function ( input ) {
         network.nodes.forEach(function (n) {
             strength = mathjs.add(strength, n.data.degree);
         });
-        network.metrics.layerStrength = strength;
+        network.metrics.layerStrength = strength / 2;
     };
 
     var calcNodelayerDegrees = function (done, step) {
@@ -2051,6 +2410,20 @@ var Munemo = function ( input ) {
         }
         network.metrics.degreeEntropy = entropy;
     };
+
+
+    /**
+     * Calculate clustering coefficient
+     */
+
+    //var calcClusteringCoefficient = function () {
+    //
+    //    var sum = 0;
+    //    for (var n = 0; n < network.nodes.length; n++ ) {
+    //
+    //    }
+    //
+    //};
 
     /**
      *  calculate the multiplex participation coefficient
