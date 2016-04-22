@@ -8,23 +8,27 @@ var Baby = require("babyparse");
 var R = require("ramda");
 var munemo = require('biojs-io-munemo');
 var mathjs = require('mathjs');
-var csvWriter = require('csv-write-stream')
+var csvWriter = require('csv-write-stream');
 
 function analyze (input) {
 
-    var file;
-    if ( typeof input === 'undefined' ) {
-        file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Elegans-Notch-TGF-WNT-No-TF.csv', 'utf-8');
+
+
+    var elements;
+    if (input.from === 'network') {
+        elements = input.network;
     } else {
-        file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + input, 'utf-8');
+        var file;
+        if ( typeof input === 'undefined' ) {
+            file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/Elegans-Notch-TGF-WNT-No-TF.csv', 'utf-8');
+        } else {
+            file = fs.readFileSync('/Users/ds/Documents/Code/Thesis/BioJS/Data/slk2/' + input, 'utf-8');
+        }
+        var data = parse(file, true);
+        elements = munemo({inFormat: 'csv', data: file, opts: {paths: true}});
     }
-
-
-    var data = parse(file, true);
-
-    var elements = munemo({inFormat: 'csv', data: file, opts: {paths: true}});
     //console.log(elements);
-    var edges = elements.edges;
+    var edges = R.clone(elements.edges);
     var paths = [];
 
 // remove any within pathway interaction
@@ -42,7 +46,7 @@ function analyze (input) {
         if ( trg != '' ) paths.push(trg);
         if (arraysEqual(src, trg)) {
             var id = edges[i].data.id;
-            delete elements.elements['e' + id];
+            //delete elements.elements['e' + id];
             edges = R.remove(i, 1, edges);
         }
     }
@@ -54,6 +58,7 @@ function analyze (input) {
 
     var f = R.compose(R.uniq, mapSplit, R.flatten);
     paths = f(paths);
+    console.log(paths);
 
     var object = {};
 // Init object
@@ -77,6 +82,7 @@ function analyze (input) {
         // Test for crosstalk
         for (var sCount = 0; sCount < src.length; sCount++) {
             for (var tCount = 0; tCount < trg.length; tCount++) {
+                //TODO: Add case for TFs
                 if (src[sCount] !== trg[tCount] && src[sCount] !== '' && trg[tCount] !== '') {
                     cc["src"] = src[sCount];
                     cc["trg"] = trg[tCount];
@@ -258,25 +264,25 @@ function analyze (input) {
     var pw = new csvWriter();
     pw.pipe(fs.createWriteStream('./results/Participation.csv', {'flags': 'a'}));
     pw.write(participationCoeff);
-
-    /**
-     * Save results to file!
-     */
-
-    var layerIDs = R.map(function (i) { return i.data['id'] }, network.layers);
-    layerIDs.unshift('node');
-    var writer = csvWriter({headers: layerIDs});
-    writer.pipe(fs.createWriteStream('Degrees-' + input));
-    cc.nodes.forEach(function (n) {
-        var res = n.data.degree;
-        res = [n.data.id.substr(1), res];
-        writer.write(res);
-    });
-    console.log(cc.nodes[0]);
+    //
+    ///**
+    // * Save results to file!
+    // */
+    //
+    //var layerIDs = R.map(function (i) { return i.data['id'] }, network.layers);
+    //layerIDs.unshift('node');
+    //var writer = csvWriter({headers: layerIDs});
+    //writer.pipe(fs.createWriteStream('Degrees-' + input));
+    //cc.nodes.forEach(function (n) {
+    //    var res = n.data.degree;
+    //    res = [n.data.id.substr(1), res];
+    //    writer.write(res);
+    //});
+    //console.log(cc.nodes[0]);
     //writer.pipe(fs.createWriteStream('Entropy-' + input));
     //writer.write(entropy);
     var entropy = network.metrics.degreeEntropy;
-    writer.end();
+    //writer.end();
     entropy.name = input;
     var w2 = csvWriter();
     w2.pipe(fs.createWriteStream('./results/Entropy.csv', {'flags': 'a'}));
@@ -630,6 +636,7 @@ var munemo = require('biojs-io-munemo');
 var utils = require('./utils');
 var R = require("ramda");
 var serveIndex = require('serve-index');
+var csvWriter = require('csv-write-stream')
 
 
 
@@ -695,6 +702,9 @@ app.post("/", function (req, res, next) {
         ws.write(networkString, function (err) {
             ws.end();
         });
+
+        writeDegrees(model);
+
         res.writeHead(200, {'Content-Type': 'text/json'});
         res.end(JSON.stringify(model));
     }
@@ -711,6 +721,21 @@ app.post("/create", function (req, res, next) {
     ws.write(networkString, function (err) {
         ws.end();
     });
+
+    //var layerIDs = R.map(function (i) { return i.data['id'] }, network.layers);
+    //layerIDs.unshift('node');
+    //var writer = csvWriter({headers: layerIDs});
+    //console.log("Writing degrees...");
+    //writer.pipe(fs.createWriteStream('Degrees-' + req.body.url.split('.')[0]));
+    //cc.nodes.forEach(function (n) {
+    //    var res = n.data.degree;
+    //    res.unshift(n.data.id.substr(1));
+    //    writer.write(res);
+    //});
+    //writer.end();
+
+    writeDegrees(network);
+
     //console.log(networkString);
     res.end(networkString);
     next();
@@ -835,78 +860,13 @@ app.post("/subset", function (req, res, next) {
 
     console.log("Nodelayers.length: " + network.nodelayers.length);
     console.log("elements.length: " + Object.keys(network.elements).length);
-    //console.log(nls);
+    var cc = crossTalks({ from: 'network', network: network});
+    var result = {
+        network: network,
+        cc: cc
+    };
 
-    //network.func.calcNodelayerDegrees();
-    //
-    //
-    //length = network.nodelayers.length;
-    //console.log("length: " + length);
-    //for ( i = 0; i < length; i++ ) {
-    //    var nl = network.nodelayers.pop();
-    //    if (nl.data.degree > 0) {
-    //        network.nodelayers.unshift(nl);
-    //    } else {
-    //        delete network.elements['nl' + nl.data.id];
-    //        console.log("Deleting nodelayer! \r");
-    //    }
-    //    //process.stdout.write("Deleting nls w/ deg == 0: " + ( (i / length) * 100 ).toFixed(2) + "% \r");
-    //    //process.stdout.write("Deleting nls w/ deg == 0: " + nl.data.degree + "\r");
-    //    console.log(nl.data.degree);
-    //
-    //}
-    //console.log("\n" + network.nodelayers.length);
-
-    //nls = R.uniq(nls);
-    //
-    //var nodes = {
-    //    ids: [],
-    //    elements: {}
-    //};
-    //
-    //
-    //for ( i = 0; i < network.nodelayers.length; i++ ) {
-    //    if (!R.contains('nl' + network.nodelayers[i].data.id, nls)) {
-    //        network.nodelayers.splice(i, 1);
-    //        delete network.elements['nl' + network.nodelayers[i].data.id];
-    //    } else {
-    //        var nodeID = 'n' + network.nodelayers[i].data.node;
-    //        nodes.elements[nodeID] = network.elements[nodeID];
-    //        nodes.ids.push(nodeID);
-    //    }
-    //}
-    //console.log(network.nodelayers.length);
-    //console.log(Object.keys(network.elements).length);
-    //
-    //
-    //for (var el in network.elements) {
-    //    if (network.elements.hasOwnProperty(el)) {
-    //        if (el.group === 'nodes') delete network.elements[el];
-    //    }
-    //}
-    //for (el in nodes.elements) {
-    //    if (nodes.elements.hasOwnProperty(el)) {
-    //        network.elements[el] = nodes.elements[el];
-    //    }
-    //}
-    //
-    //var newNodes = [];
-    //nodes.ids.forEach(function (n) {
-    //    for ( var j = 0; j < network.nodes.length; j++ ) {
-    //        if (network.nodes[j].data.id === n) {
-    //            newNodes.push(network.nodes[j]);
-    //            break;
-    //        }
-    //    }
-    //});
-    //network.nodes = newNodes;
-
-    //Possibly: Remove NLs not on given layers
-
-    //console.log(network.nodes);
-
-
-    res.end(JSON.stringify(network));
+    res.end(JSON.stringify(result));
     next();
 });
 
@@ -1009,9 +969,66 @@ function createAndAnalyse (req) {
     network.func.calcDegreeEntropy();
     network.func.calcParticipationCoefficient();
 
+
+
     return network;
 }
-},{"./cross-talk-analysis":1,"./utils":4,"biojs-io-munemo":6,"body-parser":8,"express":312,"fs":59,"http":295,"ramda":868,"serve-index":869}],4:[function(require,module,exports){
+
+
+function writeDegrees (model) {
+    var layerIDs = R.map(function (i) { return i.data['id'] }, model.layers);
+    // Sort layers
+    var order = ["lTranscriptionalregulation", "lDirectedprotein-proteininteraction",
+        "lInteractionbetweenpathwaymembers", "lPathwayregulation", "lPost-translationalmodification"];
+    //var move = function (array, from, to) {
+    //    array.splice(to, 0, this.splice(from, 1)[0]);
+    //    return array;
+    //};
+    //for (var i = layerIDs.length; i < order.length; i++) {
+    //    layerIDs.push('');
+    //}
+    //
+    //var ids = ["lDirectedprotein-proteininteraction",
+    //    "lInteractionbetweenpathwaymembers",
+    //    "lPathwayregulation",
+    //    "lPost-translationalmodification"];
+    //
+    //var ndeg = [0, 2, 3, 4];
+    //for (var j = ndeg.length; j < order.length; j++) {
+    //    ndeg.push(-1);
+    //} // ndeg = [0, 2, 3, 4, -1]
+    //
+    //var newDeg = Array.apply(null, Array(order.length)).map(Number.prototype.valueOf, -1);
+    //for (i = 0; i < ids.length; i ++) {
+    //    var target = order.indexOf(ids[i]);
+    //    newDeg[target] = ndeg[i];
+    //}
+
+
+    console.log("Writing degrees...");
+
+    var out = ['Pathway'].concat(order).join(',') + '\n';
+    model.nodes.forEach(function (n) {
+        // Sort res
+        var res = Array.apply(null, Array(order.length)).map(Number.prototype.valueOf, -1); //n.data.degree;
+        for (var i = 0; i < layerIDs.length; i ++) {
+            var target = order.indexOf(layerIDs[i]);
+            res[target] = n.data.degree[i];
+        }
+        res = res.map(String);
+        console.log(res);
+        res = [n.data.id.substr(1)].concat(res);
+        out = out +  res.join(',') + '\n';
+        console.log(out);
+        //console.log(writeStr.write(res.join(',') + '\n'));
+
+    });
+    //writer.end();
+    fs.writeFileSync('Degrees-' + req.body.url.split('.')[0] + '.csv', out);
+    //fs.writeFileSync('Degree.csv', out);
+
+}
+},{"./cross-talk-analysis":1,"./utils":4,"biojs-io-munemo":6,"body-parser":8,"csv-write-stream":309,"express":312,"fs":59,"http":295,"ramda":868,"serve-index":869}],4:[function(require,module,exports){
 /**
  * Created by ds on 28/03/2016.
  */
